@@ -24,15 +24,22 @@ server:
 
 scp:
   kafka:
+    topics:
+      receive: "${SCP_RRS_KAFKA_TOPICS_RECEIVE:select-direct-0}"
+      confirm:
+        template: "${SCP_RRS_KAFKA_TOPICS_CONFIRM_TEMPLATE:select-indirect-}"
     url: "${SCP_RRS_KAFKA_URL:localhost:29092}"
-    topic-template: "${SCP_RRS_KAFKA_TOPIC_TEMPLATE:select-direct-}"
   rrs:
     worker:
       channels:
         start: "${SCP_RRS_CHANNEL_START:0}"
-        end: "${SCP_RRS_CHANNEL_END:7}"
-        mask: "${SCP_RRS_CHANNEL_MASK:7}"
-        count: "${SCP_RRS_CHANNEL_COUNT:8}"
-      parallelism: "${SCP_RRS_WORKER_PARALLELISM:4}"
+        end: "${SCP_RRS_CHANNEL_END:1}"
+        mask: "${SCP_RRS_CHANNEL_MASK:0}"
+        count: "${SCP_RRS_CHANNEL_COUNT:1}"
+      parallelism: "${SCP_RRS_WORKER_PARALLELISM:2}"
       max-processing-chunk: "${SCP_RRS_WORKER_MAX_PROCESSING_CHUNK:1024}"
+    receiver:
+      chunk-size: "${SCP_RRS_RECEIVER_CHUNK_SIZE:32}"
+      max-chunk-size: "${SCP_RRS_RECEIVER_MAX_CHUNK_SIZE:64}"
+      receive-buffer-size: "${SCP_RRS_RECEIVER_RECEIVE_BUFFER_SIZE:128}"
 

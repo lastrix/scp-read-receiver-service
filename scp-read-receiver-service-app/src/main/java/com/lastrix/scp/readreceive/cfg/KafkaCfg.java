@@ -1,8 +1,8 @@
 package com.lastrix.scp.readreceive.cfg;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lastrix.scp.readreceive.model.EnrolleeSelectId;
 import com.lastrix.scp.sender.KafkaChangeSender;
+import com.lastrix.scp.writesender.model.EnrolleeSelectId;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,7 +21,7 @@ public class KafkaCfg {
     private static final int ONE_MB = 1024 * ONE_KB;
     @Value("${scp.kafka.url}")
     private String kafkaURL;
-    @Value("${scp.kafka.topic-template}")
+    @Value("${scp.kafka.topics.confirm.template}")
     private String topicTemplate;
 
     @Bean

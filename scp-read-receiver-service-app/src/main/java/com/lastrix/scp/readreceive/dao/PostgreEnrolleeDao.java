@@ -1,6 +1,7 @@
 package com.lastrix.scp.readreceive.dao;
 
-import com.lastrix.scp.readreceive.model.EnrolleeSelectId;
+import com.lastrix.scp.writesender.model.EnrolleeSelect;
+import com.lastrix.scp.writesender.model.EnrolleeSelectId;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,16 +21,29 @@ public class PostgreEnrolleeDao implements EnrolleeDao {
     }
 
     @Override
+    public int update(List<EnrolleeSelect> list) {
+        int[] a = jdbcTemplate.batchUpdate(
+                "UPDATE scp_read_service.enrollee_select SET " +
+                        "state = false, " +
+                        "modified_stamp = CURRENT_TIMESTAMP, " +
+                        "status = ?, " +
+                        "score = ?, " +
+                        "created_stamp = ?, " +
+                        "confirmed_stamp = ?, " +
+                        "cancelled_stamp = ? " +
+                        "WHERE user_id = ? AND session_id = ? AND spec_id = ? AND ordinal < ?",
+                list.stream().map(x -> new Object[]{x.getStatus(), x.getScore(), x.getCreatedStamp(), x.getConfirmedStamp(), x.getCancelledStamp(), x.getUserId(), x.getSessionId(), x.getSpecId(), x.getOrdinal()}).toList()
+        );
+        return sumArray(a);
+    }
+
+    @Override
     public int commit(List<EnrolleeSelectId> changes) {
         int[] a = jdbcTemplate.batchUpdate(
                 "UPDATE scp_read_service.enrollee_select SET state = true, modified_stamp = CURRENT_TIMESTAMP WHERE user_id = ? AND session_id = ? AND spec_id = ? AND ordinal = ?",
                 changes.stream().map(x -> new Object[]{x.getUserId(), x.getSessionId(), x.getSpecId(), x.getOrdinal()}).toList()
         );
-        int t = 0;
-        for (int v : a) {
-            t += v;
-        }
-        return t;
+        return sumArray(a);
     }
 
     @Override
@@ -50,5 +64,13 @@ public class PostgreEnrolleeDao implements EnrolleeDao {
                 },
                 page * 128
         );
+    }
+
+    private int sumArray(int[] a) {
+        int t = 0;
+        for (int v : a) {
+            t += v;
+        }
+        return t;
     }
 }

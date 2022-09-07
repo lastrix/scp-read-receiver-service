@@ -34,6 +34,11 @@
         </dependency>
         <dependency>
             <groupId>com.lastrix.scp</groupId>
+            <artifactId>scp-receiver-service-base</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.lastrix.scp</groupId>
             <artifactId>scp-lib-rest</artifactId>
             <version>0.1-SNAPSHOT</version>
         </dependency>

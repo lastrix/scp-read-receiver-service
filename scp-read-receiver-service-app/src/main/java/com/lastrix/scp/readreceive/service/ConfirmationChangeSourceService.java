@@ -1,8 +1,8 @@
 package com.lastrix.scp.readreceive.service;
 
 import com.lastrix.scp.readreceive.dao.EnrolleeDao;
-import com.lastrix.scp.readreceive.model.EnrolleeSelectId;
 import com.lastrix.scp.sender.ChangeSourceService;
+import com.lastrix.scp.writesender.model.EnrolleeSelectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
