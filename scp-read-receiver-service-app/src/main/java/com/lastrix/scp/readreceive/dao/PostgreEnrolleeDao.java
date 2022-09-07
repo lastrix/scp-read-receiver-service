@@ -9,7 +9,6 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,21 +25,21 @@ public class PostgreEnrolleeDao implements EnrolleeDao {
 
     @Override
     public int update(List<EnrolleeSelect> list) {
-        List<EnrolleeSelect> insert = new ArrayList<>();
-        List<EnrolleeSelect> update = new ArrayList<>();
-        for (EnrolleeSelect es : list) {
-            if (jdbcTemplate.queryForObject(
-                    "SELECT EXISTS(SELECT true FROM scp_read_service.enrollee_select es WHERE user_id = ? AND session_id = ? AND spec_id = ?)",
-                    new Object[]{es.getUserId(), es.getSessionId(), es.getSpecId()},
-                    (rs, rn) -> rs.getBoolean(1))) {
-                update.add(es);
-            } else {
-                insert.add(es);
-            }
-        }
-        int[] i = insert.isEmpty() ? EMPTY : jdbcTemplate.batchUpdate("INSERT INTO scp_read_service.enrollee_select(status, score, created_stamp, confirmed_stamp, canceled_stamp, user_id, session_id, spec_id, ordinal)" +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                insert.stream().map(x -> new Object[]{
+        int[] a = jdbcTemplate.batchUpdate(
+                """
+                        INSERT INTO scp_read_service.enrollee_select AS es(status, score, created_stamp, confirmed_stamp, canceled_stamp, user_id, session_id, spec_id, ordinal)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT (spec_id, session_id, user_id)
+                        DO UPDATE SET state = false,
+                                      modified_stamp = CURRENT_TIMESTAMP,
+                                      status = ?,
+                                      score = ?,
+                                      created_stamp = ?,
+                                      confirmed_stamp = ?,
+                                      canceled_stamp = ?,
+                                      ordinal = ?
+                        WHERE es.user_id = ? AND es.session_id = ? AND es.spec_id = ? AND es.ordinal < ?""",
+                list.stream().map(x -> new Object[]{
                         x.getStatus(),
                         x.getScore(),
                         fromInstantOrNull(x.getCreatedStamp()),
@@ -49,20 +48,8 @@ public class PostgreEnrolleeDao implements EnrolleeDao {
                         x.getUserId(),
                         x.getSessionId(),
                         x.getSpecId(),
-                        x.getOrdinal()
-                }).toList());
-        int[] a = update.isEmpty() ? EMPTY : jdbcTemplate.batchUpdate(
-                "UPDATE scp_read_service.enrollee_select SET " +
-                        "state = false, " +
-                        "modified_stamp = CURRENT_TIMESTAMP, " +
-                        "status = ?, " +
-                        "score = ?, " +
-                        "created_stamp = ?, " +
-                        "confirmed_stamp = ?, " +
-                        "canceled_stamp = ?, " +
-                        "ordinal = ? " +
-                        "WHERE user_id = ? AND session_id = ? AND spec_id = ? AND ordinal < ?",
-                update.stream().map(x -> new Object[]{
+                        x.getOrdinal(),
+
                         x.getStatus(),
                         x.getScore(),
                         fromInstantOrNull(x.getCreatedStamp()),
@@ -75,7 +62,7 @@ public class PostgreEnrolleeDao implements EnrolleeDao {
                         x.getOrdinal()
                 }).toList()
         );
-        return sumArray(i) + sumArray(a);
+        return sumArray(a);
     }
 
 
