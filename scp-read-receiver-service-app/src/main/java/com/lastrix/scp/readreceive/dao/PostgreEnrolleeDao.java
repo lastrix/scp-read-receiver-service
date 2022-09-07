@@ -7,12 +7,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @Slf4j
 @Repository
 public class PostgreEnrolleeDao implements EnrolleeDao {
+    public static final int[] EMPTY = new int[0];
     private final JdbcTemplate jdbcTemplate;
 
     @Autowired
@@ -22,7 +26,32 @@ public class PostgreEnrolleeDao implements EnrolleeDao {
 
     @Override
     public int update(List<EnrolleeSelect> list) {
-        int[] a = jdbcTemplate.batchUpdate(
+        List<EnrolleeSelect> insert = new ArrayList<>();
+        List<EnrolleeSelect> update = new ArrayList<>();
+        for (EnrolleeSelect es : list) {
+            if (jdbcTemplate.queryForObject(
+                    "SELECT EXISTS(SELECT true FROM scp_read_service.enrollee_select es WHERE user_id = ? AND session_id = ? AND spec_id = ?)",
+                    new Object[]{es.getUserId(), es.getSessionId(), es.getSpecId()},
+                    (rs, rn) -> rs.getBoolean(1))) {
+                update.add(es);
+            } else {
+                insert.add(es);
+            }
+        }
+        int[] i = insert.isEmpty() ? EMPTY : jdbcTemplate.batchUpdate("INSERT INTO scp_read_service.enrollee_select(status, score, created_stamp, confirmed_stamp, canceled_stamp, user_id, session_id, spec_id, ordinal)" +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                insert.stream().map(x -> new Object[]{
+                        x.getStatus(),
+                        x.getScore(),
+                        fromInstantOrNull(x.getCreatedStamp()),
+                        fromInstantOrNull(x.getConfirmedStamp()),
+                        fromInstantOrNull(x.getCancelledStamp()),
+                        x.getUserId(),
+                        x.getSessionId(),
+                        x.getSpecId(),
+                        x.getOrdinal()
+                }).toList());
+        int[] a = update.isEmpty() ? EMPTY : jdbcTemplate.batchUpdate(
                 "UPDATE scp_read_service.enrollee_select SET " +
                         "state = false, " +
                         "modified_stamp = CURRENT_TIMESTAMP, " +
@@ -30,12 +59,25 @@ public class PostgreEnrolleeDao implements EnrolleeDao {
                         "score = ?, " +
                         "created_stamp = ?, " +
                         "confirmed_stamp = ?, " +
-                        "cancelled_stamp = ? " +
+                        "canceled_stamp = ?, " +
+                        "ordinal = ? " +
                         "WHERE user_id = ? AND session_id = ? AND spec_id = ? AND ordinal < ?",
-                list.stream().map(x -> new Object[]{x.getStatus(), x.getScore(), x.getCreatedStamp(), x.getConfirmedStamp(), x.getCancelledStamp(), x.getUserId(), x.getSessionId(), x.getSpecId(), x.getOrdinal()}).toList()
+                update.stream().map(x -> new Object[]{
+                        x.getStatus(),
+                        x.getScore(),
+                        fromInstantOrNull(x.getCreatedStamp()),
+                        fromInstantOrNull(x.getConfirmedStamp()),
+                        fromInstantOrNull(x.getCancelledStamp()),
+                        x.getOrdinal(),
+                        x.getUserId(),
+                        x.getSessionId(),
+                        x.getSpecId(),
+                        x.getOrdinal()
+                }).toList()
         );
-        return sumArray(a);
+        return sumArray(i) + sumArray(a);
     }
+
 
     @Override
     public int commit(List<EnrolleeSelectId> changes) {
@@ -72,5 +114,9 @@ public class PostgreEnrolleeDao implements EnrolleeDao {
             t += v;
         }
         return t;
+    }
+
+    private Timestamp fromInstantOrNull(Instant i) {
+        return i == null ? null : Timestamp.from(i);
     }
 }
