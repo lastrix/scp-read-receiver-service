@@ -1,0 +1,38 @@
+########## Framework related configuration goes here ################
+spring:
+  profiles:
+    active: 'prod'
+  application:
+    name: 'scp-read-receive-service'
+  datasource:
+    # right now we work only with PostgreSQL so no reason to add
+    # env variable usage
+    driver-class-name: 'org.postgresql.Driver'
+    url: "${SCP_RRS_DB_URL}"
+    username: "${SCP_RRS_DB_USERNAME}"
+    password: "${SCP_RRS_DB_PASSWORD}"
+# no liquibase configuration here, this work performed by write service
+
+server:
+  servlet:
+    encoding:
+      # enforce unicode encoding
+      charset: 'UTF-8'
+      force-response: 'true'
+
+########## Application related configuration goes here ##############
+
+scp:
+  kafka:
+    url: "${SCP_RRS_KAFKA_URL:localhost:29092}"
+    topic-template: "${SCP_RRS_KAFKA_TOPIC_TEMPLATE:select-direct-}"
+  rrs:
+    worker:
+      channels:
+        start: "${SCP_RRS_CHANNEL_START:0}"
+        end: "${SCP_RRS_CHANNEL_END:7}"
+        mask: "${SCP_RRS_CHANNEL_MASK:7}"
+        count: "${SCP_RRS_CHANNEL_COUNT:8}"
+      parallelism: "${SCP_RRS_WORKER_PARALLELISM:4}"
+      max-processing-chunk: "${SCP_RRS_WORKER_MAX_PROCESSING_CHUNK:1024}"
+
