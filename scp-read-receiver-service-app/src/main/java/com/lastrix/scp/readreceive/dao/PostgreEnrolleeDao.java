@@ -15,7 +15,6 @@ import java.util.UUID;
 @Slf4j
 @Repository
 public class PostgreEnrolleeDao implements EnrolleeDao {
-    public static final int[] EMPTY = new int[0];
     private final JdbcTemplate jdbcTemplate;
 
     @Autowired
@@ -27,8 +26,19 @@ public class PostgreEnrolleeDao implements EnrolleeDao {
     public int update(List<EnrolleeSelect> list) {
         int[] a = jdbcTemplate.batchUpdate(
                 """
-                        INSERT INTO scp_read_service.enrollee_select AS es(status, score, created_stamp, confirmed_stamp, canceled_stamp, user_id, session_id, spec_id, ordinal)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO scp_read_service.enrollee_select
+                            AS es(
+                                status,
+                                score,
+                                created_stamp,
+                                confirmed_stamp,
+                                canceled_stamp,
+                                user_id,
+                                session_id,
+                                spec_id,
+                                ordinal
+                                )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) -- 9 params
                         ON CONFLICT (spec_id, session_id, user_id)
                         DO UPDATE SET state = false,
                                       modified_stamp = CURRENT_TIMESTAMP,
@@ -37,9 +47,14 @@ public class PostgreEnrolleeDao implements EnrolleeDao {
                                       created_stamp = ?,
                                       confirmed_stamp = ?,
                                       canceled_stamp = ?,
-                                      ordinal = ?
-                        WHERE es.user_id = ? AND es.session_id = ? AND es.spec_id = ? AND es.ordinal < ?""",
+                                      ordinal = ?  -- 6 params
+                        WHERE   es.user_id = ?
+                            AND es.session_id = ?
+                            AND es.spec_id = ?
+                            AND es.ordinal < ? -- 4 params
+                            """,
                 list.stream().map(x -> new Object[]{
+                        // insert part 9 params
                         x.getStatus(),
                         x.getScore(),
                         fromInstantOrNull(x.getCreatedStamp()),
@@ -49,13 +64,14 @@ public class PostgreEnrolleeDao implements EnrolleeDao {
                         x.getSessionId(),
                         x.getSpecId(),
                         x.getOrdinal(),
-
+                        // update part 6 params
                         x.getStatus(),
                         x.getScore(),
                         fromInstantOrNull(x.getCreatedStamp()),
                         fromInstantOrNull(x.getConfirmedStamp()),
                         fromInstantOrNull(x.getCancelledStamp()),
                         x.getOrdinal(),
+                        // update where part 4 params
                         x.getUserId(),
                         x.getSessionId(),
                         x.getSpecId(),
@@ -69,8 +85,19 @@ public class PostgreEnrolleeDao implements EnrolleeDao {
     @Override
     public int commit(List<EnrolleeSelectId> changes) {
         int[] a = jdbcTemplate.batchUpdate(
-                "UPDATE scp_read_service.enrollee_select SET state = true, modified_stamp = CURRENT_TIMESTAMP WHERE user_id = ? AND session_id = ? AND spec_id = ? AND ordinal = ?",
-                changes.stream().map(x -> new Object[]{x.getUserId(), x.getSessionId(), x.getSpecId(), x.getOrdinal()}).toList()
+                """
+                        UPDATE scp_read_service.enrollee_select
+                        SET state = true, modified_stamp = CURRENT_TIMESTAMP
+                        WHERE   user_id = ?
+                            AND session_id = ?
+                            AND spec_id = ?
+                            AND ordinal = ?""",
+                changes.stream().map(x -> new Object[]{
+                        x.getUserId(),
+                        x.getSessionId(),
+                        x.getSpecId(),
+                        x.getOrdinal()
+                }).toList()
         );
         return sumArray(a);
     }
@@ -78,11 +105,15 @@ public class PostgreEnrolleeDao implements EnrolleeDao {
     @Override
     public List<EnrolleeSelectId> fetch(int page) {
         return jdbcTemplate.query(
-                "SELECT spec_id, session_id, user_id, ordinal " +
-                        "FROM scp_read_service.enrollee_select es " +
-                        "WHERE es.state = false " +
-                        "ORDER BY es.modified_stamp " +
-                        "LIMIT 128 OFFSET ?",
+                """
+                        SELECT  spec_id,
+                                session_id,
+                                user_id,
+                                ordinal
+                        FROM scp_read_service.enrollee_select es
+                        WHERE es.state = false
+                        ORDER BY es.modified_stamp
+                        LIMIT 128 OFFSET ?""",
                 (rs, rowNum) -> {
                     var e = new EnrolleeSelectId();
                     e.setSpecId(UUID.fromString(rs.getString(1)));
